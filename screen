@@ -1,0 +1,267 @@
+#include <Adafruit_GC9A01A.h>
+#include "SPI.h"
+#include "Adafruit_GFX.h"
+#define TFT_DC  7
+#define TFT_CS 10
+// Define rotary encoder pins
+#define ENC_A 2
+#define ENC_B 3
+Adafruit_GC9A01A tft(TFT_CS, TFT_DC);
+
+unsigned long _lastIncReadTime = micros();
+unsigned long _lastDecReadTime = micros();
+int _pauseLength = 25000;
+
+int set_time = 10;
+int now_time = 8;
+
+volatile int counter = 0;
+
+int lastEndAngle = 0; // Store the end angle for drawing the arc
+bool screenIsActive = false; // Track if the screen is currently active
+int lastKnownCounter = 0; // Store the last counter value to redraw the previous arc
+
+
+
+//--------------------------------------------------------------------------------
+
+//FUNCTION READ VALUE FROM ROTARY ENCODER
+void read_encoder() {
+    // Encoder interrupt routine for both pins. Updates counter
+    // if they are valid and have rotated a full indent
+    static uint8_t old_AB = 3;  // Lookup table index
+    static int8_t encval = 0;   // Encoder value
+    static const int8_t enc_states[] = {
+        0, -1, 1, 0,
+        1, 0, 0, -1,
+        -1, 0, 0, 1,
+        0, 1, -1, 0
+    };  // Lookup table
+    old_AB <<= 2;  // Remember previous state
+    if (digitalRead(ENC_A)) old_AB |= 0x02;  // Add current state of pin A
+    if (digitalRead(ENC_B)) old_AB |= 0x01;  // Add current state of pin B
+    encval += enc_states[old_AB & 0x0f];
+    // Update counter if encoder has rotated a full indent, that is at least 4 steps
+    if (encval > 1) {  // Four steps forward
+        int changevalue = 1;
+        if ((micros() - _lastIncReadTime) < _pauseLength) {
+            changevalue = 10 * changevalue;
+        }
+        _lastIncReadTime = micros();
+        counter = counter + changevalue;
+        encval = 0;
+    } else if (encval < -1) {  // Four steps backward
+        int changevalue = -1;
+        if ((micros() - _lastDecReadTime) < _pauseLength) {
+            changevalue = 10 * changevalue;
+        }
+        _lastDecReadTime = micros();
+        counter = counter + changevalue;
+        encval = 0;
+    }
+}
+
+
+//FUNCTION DRAW THICK CIRCLE
+void drawThickCircle(uint16_t x, uint16_t y, uint8_t radius, uint16_t color, uint8_t lineWidth) {
+    // Start from one radius less than the main radius and increment up to add the line width
+    for (int i = 0; i < lineWidth; i++) {
+        tft.drawCircle(x, y, radius - lineWidth/2 + i, color);
+        
+    }
+}
+
+
+//FUNCTION DRAW ARC
+void drawArc(int16_t x, int16_t y, uint16_t radius, uint16_t startAngle, uint16_t arcLength, uint16_t color, uint8_t thickness) {
+    float startRad = (startAngle - 90) * DEG_TO_RAD; // Convert degrees to radians, adjusting for 12 o'clock start
+    float arcRad = arcLength * DEG_TO_RAD;
+    float endRad = startRad + arcRad;
+    for (int i = 0; i < thickness; i++) {
+        for (float angle = startRad; angle < endRad; angle += 0.02) { // Increment by small radians for smoother arc
+            int16_t x0 = x + (radius - i) * cos(angle);
+            int16_t y0 = y + (radius - i) * sin(angle);
+            int16_t x1 = x + (radius - i) * cos(angle + 0.02);
+            int16_t y1 = y + (radius - i) * sin(angle + 0.02);
+            tft.drawLine(x0, y0, x1, y1, color); // Draw line segment
+        }
+    }
+}
+
+
+// FUNTION UPDATEARC
+void updateArc(int newCounter, int oldCounter) {
+    int startAngle = 0;  // Start drawing from 12 o'clock
+    uint16_t color = newCounter > oldCounter ? GC9A01A_WHITE : GC9A01A_BLACK;
+    int arcLength = abs(newCounter - oldCounter) * 4;  // Determine the length of the arc to draw or erase
+    uint8_t thickness = newCounter > oldCounter ? 5 : 7;  // Thicker arc for erasing
+
+    // Calculate the angle based on the smaller counter
+    int angleOffset = min(newCounter, oldCounter) * 4;
+    lastEndAngle = startAngle + angleOffset + arcLength;
+    drawArc(120, 120, 110, startAngle + angleOffset, arcLength, color, thickness);
+}
+
+
+//FUNCTION DRAW PREVIOUS ARC
+void drawPreviousArc() {
+    int startAngle = 0;
+    int arcLength = lastKnownCounter * 4; // Calculate previous arc length
+    drawArc(120, 120, 110, startAngle, arcLength, GC9A01A_WHITE, 5); // Assuming the previous color and thickness
+}
+
+//FUNCTION DRAW POINT ON CIRCLE
+void drawPointOnCircle(int16_t x0, int16_t y0, uint16_t radius, uint8_t hour, uint16_t color, uint8_t pointSize) {
+    float angle = (hour % 12) * 30 - 90; // Convert hour to angle (clock starts from -90 degrees).
+    float radian = angle * DEG_TO_RAD;
+    int16_t x = x0 + radius * cos(radian);
+    int16_t y = y0 + radius * sin(radian);
+    tft.fillCircle(x, y, pointSize, color);
+}
+
+
+void displaySetDone() {
+  tft.setCursor(52, 113);
+  tft.setTextSize(3);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println("Set Done");
+  delay(3000);
+  tft.fillScreen(GC9A01A_BLACK); // Change the screen to black
+  drawThickCircle(120,120,110,GC9A01A_WHITE,5);
+  drawPointOnCircle(120, 120, 100, now_time, GC9A01A_GREEN, 5);
+  drawPointOnCircle(120, 120, 110, set_time, GC9A01A_WHITE, 5);
+  tft.setCursor(105, 20);
+  tft.setTextSize(3);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println(12);
+  tft.setCursor(112, 200);
+  tft.setTextSize(3);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println(6);
+  tft.setCursor(22, 114);
+  tft.setTextSize(3);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println(9);
+  tft.setCursor(207, 114);
+  tft.setTextSize(3);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println(3);
+  delay(2000);
+  tft.setCursor(80, 113);
+  tft.setTextSize(2);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println("Set Time");
+  tft.fillCircle(120, 96, 5, GC9A01A_WHITE);
+  delay(5000);
+  tft.fillCircle(120, 120, 80, GC9A01A_BLACK);
+  tft.setCursor(55, 113);
+  tft.setTextSize(2);
+  tft.setTextColor(GC9A01A_WHITE);
+  tft.println("Current Time");
+  tft.fillCircle(120, 96, 5, GC9A01A_GREEN);
+  delay(5000);
+  tft.fillCircle(120, 120, 80, GC9A01A_BLACK);
+}
+
+
+//--------------------------------------------------------------------------------
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  tft.begin();
+
+#if defined(TFT_BL)
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH); // Backlight on
+#endif // end TFT_BL
+
+  //tft.drawCircle(120, 120, 110,GC9A01A_WHITE);
+  tft.fillScreen(GC9A01A_BLACK);
+
+
+  pinMode(ENC_A, INPUT_PULLUP);
+  pinMode(ENC_B, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ENC_A), read_encoder, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ENC_B), read_encoder, CHANGE);
+}
+//--------------------------------------------------------------------------------
+unsigned long testText(int Output_Result) {
+  tft.fillCircle(120, 120, 100, GC9A01A_BLACK);
+  unsigned long start = micros();
+  if (Output_Result < 100 && Output_Result >0) {
+        tft.setCursor(65, 86);
+        tft.setTextSize(10);
+    } else if (Output_Result >= 1000) {
+        tft.setCursor(20, 95);
+        tft.setTextSize(8);
+    } else if (Output_Result == 0) {
+        tft.setCursor(98, 86);
+        tft.setTextSize(10);
+    } else {
+        tft.setCursor(37, 86);
+        tft.setTextSize(10);
+    }
+  tft.setTextColor(GC9A01A_WHITE);  
+  tft.println(Output_Result);
+  if (Output_Result<=200){
+    tft.setCursor(70, 170);
+    tft.setTextSize(2);
+    tft.setTextColor(GC9A01A_WHITE);  
+    tft.println("Small Dog");
+  } else if (Output_Result<=500){
+    tft.setCursor(60, 170);
+    tft.setTextSize(2);
+    tft.setTextColor(GC9A01A_WHITE);  
+    tft.println("Medium Dog");
+  } else if (Output_Result<=900){
+    tft.setCursor(73, 170);
+    tft.setTextSize(2);
+    tft.setTextColor(GC9A01A_WHITE);  
+    tft.println("Large Dog");
+  } else if (Output_Result>900){
+    tft.setCursor(73, 170);
+    tft.setTextSize(2);
+    tft.setTextColor(GC9A01A_WHITE);  
+    tft.println("Giant Dog");
+  }
+  return micros() - start;
+}
+static unsigned long lastUpdateTime = millis(); // Time when the counter was last updated
+
+
+
+//--------------------------------------------------------------------------------
+void loop() {
+  // put your main code here, to run repeatedly:
+  static int lastCounter = 0;
+  //Serial.print("sss");
+  // If count has changed print the new value to serial
+  //drawThickCircle(120, 120, 110, GC9A01A_WHITE, 5);
+  
+  if (counter != lastCounter) {
+    if (!screenIsActive) {
+      tft.fillScreen(GC9A01A_BLACK); // Clear the screen when reactivating
+      drawPreviousArc(); // Redraw the previous arc first
+      screenIsActive = true;
+    }
+    updateArc(counter, lastCounter);
+    lastCounter = counter;
+    lastKnownCounter = counter;
+    testText(counter*50);  
+    lastUpdateTime = millis();}
+  //Serial.println(lastUpdateTime);
+
+  if (millis() - lastUpdateTime > 8000 && screenIsActive) { // 20 seconds = 20000 milliseconds
+    tft.fillScreen(GC9A01A_BLACK); // Change the screen to black
+    lastUpdateTime = millis(); // Reset the timer to avoid constant screen refreshing
+    screenIsActive = false;
+    displaySetDone();
+    }
+}
+
+  
+
+
+
+
