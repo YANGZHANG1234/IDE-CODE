@@ -1,4 +1,4 @@
-int potmeterPin = A0;
+vint potmeterPin = A0;//
 int potmeterVal = 0;
 
 void setup() {
@@ -9,9 +9,8 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
     potmeterVal = analogRead(potmeterPin);
-    //Serial.println(potmeterVal);
     int mappedValue = mapPotmeterValue(potmeterVal);
-    //Serial.println(mappedValue);
+    Serial.println(mappedValue);
     //delay(100);
 }
 
@@ -29,3 +28,4 @@ int mapPotmeterValue(int val) {
   else
     return 5;
 }
+
