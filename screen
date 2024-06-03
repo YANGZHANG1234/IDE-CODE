@@ -13,7 +13,7 @@ unsigned long _lastDecReadTime = micros();
 int _pauseLength = 25000;
 
 int set_time = 10;
-int now_time = 8;
+int now_time = 8;//往时钟读数
 
 volatile int counter = 0;
 
@@ -238,25 +238,28 @@ void loop() {
   //Serial.print("sss");
   // If count has changed print the new value to serial
   //drawThickCircle(120, 120, 110, GC9A01A_WHITE, 5);
-  
+  //
   if (counter != lastCounter) {
     if (!screenIsActive) {
       tft.fillScreen(GC9A01A_BLACK); // Clear the screen when reactivating
       drawPreviousArc(); // Redraw the previous arc first
       screenIsActive = true;
     }
+    
     updateArc(counter, lastCounter);
     lastCounter = counter;
     lastKnownCounter = counter;
     testText(counter*50);  
     lastUpdateTime = millis();}
   //Serial.println(lastUpdateTime);
+//旋钮显示字体
 
   if (millis() - lastUpdateTime > 8000 && screenIsActive) { // 20 seconds = 20000 milliseconds
     tft.fillScreen(GC9A01A_BLACK); // Change the screen to black
     lastUpdateTime = millis(); // Reset the timer to avoid constant screen refreshing
     screenIsActive = false;
     displaySetDone();
+//待机模式显示
     }
 }
 
