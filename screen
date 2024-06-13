@@ -2,7 +2,7 @@
 #include "SPI.h"
 #include "Adafruit_GFX.h"
 #define TFT_DC  7
-#define TFT_CS 10
+#define TFT_CS 6
 // Define rotary encoder pins
 #define ENC_A 2
 #define ENC_B 3
