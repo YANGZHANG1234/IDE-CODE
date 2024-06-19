@@ -20,81 +20,85 @@ unsigned long lastChangeTime = 0;
 int lastPotValue1 = -1, lastPotValue2 = -1, lastPotValue3 = -1;
 
 void setup() {
-strip1.begin();
-strip2.begin();
-strip3.begin();
-strip1.clear(); // 明确关闭所有LED
-strip2.clear();
-strip3.clear();
-strip1.show();
-strip2.show();
-strip3.show();
-Serial.begin(9600);
+    strip1.begin();
+    strip2.begin();
+    strip3.begin();
+    strip1.clear(); // 明确关闭所有LED
+    strip2.clear();
+    strip3.clear();
+    strip1.show();
+    strip2.show();
+    strip3.show();
+    Serial.begin(9600);
 }
 
 void loop() {
-
-checkAndSetLEDs();
+    checkAndSetLEDs();
 }
 
 void checkAndSetLEDs() {
-int potValue1 = analogRead(POT1);
-int potValue2 = analogRead(POT2);
-int potValue3 = analogRead(POT3);
+    int potValue1 = analogRead(POT1);
+    int potValue2 = analogRead(POT2);
+    int potValue3 = analogRead(POT3);
 
-int mappedValue1 = mapPotmeterValue(potValue1);
-int mappedValue2 = mapPotmeterValue(potValue2);
-int mappedValue3 = mapPotmeterValue(potValue3);
+    int mappedValue1 = mapPotmeterValue(potValue1);
+    int mappedValue2 = mapPotmeterValue(potValue2);
+    int mappedValue3 = mapPotmeterValue(potValue3);
 
-// 更新LED前检查每个滑动变阻器的值是否有变化
-if (mappedValue1 != lastPotValue1) {
-lastChangeTime = millis();
-lastPotValue1 = mappedValue1;
-setLEDs(strip1, mappedValue1);
-}
-if (mappedValue2 != lastPotValue2) {
-lastChangeTime = millis();
-lastPotValue2 = mappedValue2;
-setLEDs(strip2, mappedValue2);
-}
-if (mappedValue3 != lastPotValue3) {
-lastChangeTime = millis();
-lastPotValue3 = mappedValue3;
-setLEDs(strip3, mappedValue3);
-}
+    // 更新LED前检查每个滑动变阻器的值是否有变化
+    if (mappedValue1 != lastPotValue1) {
+        lastChangeTime = millis();
+        lastPotValue1 = mappedValue1;
+        setLEDs(strip1, mappedValue1);
+    }
+    if (mappedValue2 != lastPotValue2) {
+        lastChangeTime = millis();
+        lastPotValue2 = mappedValue2;
+        setLEDs(strip2, mappedValue2);
+    }
+    if (mappedValue3 != lastPotValue3) {
+        lastChangeTime = millis();
+        lastPotValue3 = mappedValue3;
+        setLEDs(strip3, mappedValue3);
+    }
 
-// 如果30秒无变化，则关闭LED
-if (millis() - lastChangeTime > 30000) {
-strip1.clear();
-strip2.clear();
-strip3.clear();
-strip1.show();
-strip2.show();
-strip3.show();
-}
+    // 如果30秒无变化，则关闭LED
+    if (millis() - lastChangeTime > 30000) {
+        strip1.clear();
+        strip2.clear();
+        strip3.clear();
+        strip1.show();
+        strip2.show();
+        strip3.show();
+    }
 }
 
 void setLEDs(Adafruit_NeoPixel& strip, int value) {
-for (int i = 0; i < NUMPIXELS; i++) {
-if (i < value) {
-strip.setPixelColor(i, strip.Color(0, 0, 0, 255)); // 设置为白色
-} else {
-strip.setPixelColor(i, strip.Color(0, 0, 0, 0)); // 熄灭
-}
-}
-strip.show();
+    if (value == 0) {
+        strip.clear();
+    } else {
+        for (int i = 0; i < NUMPIXELS; i++) {
+            if (i < value) {
+                strip.setPixelColor(i, strip.Color(0, 0, 0, 255)); // 设置为白色
+            } else {
+                strip.setPixelColor(i, strip.Color(0, 0, 0, 0)); // 熄灭
+            }
+        }
+    }
+    strip.show();
 }
 
 int mapPotmeterValue(int val) {
-if (val == 0)
-return 0;
-else if (val < 28)
-return 1;
-else if (val < 280)
-return 2;
-else if (val < 586)
-return 3;
-else if (val < 953)
-return 4;
-else
-return 5;
+    if (val == 0)
+        return 0;
+    else if (val < 28)
+        return 0;
+    else if (val < 280)
+        return 1;
+    else if (val < 586)
+        return 2;
+    else if (val < 953)
+        return 3;
+    else
+        return 4;
+}
