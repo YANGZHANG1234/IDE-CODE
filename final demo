@@ -11,7 +11,7 @@
 #define TFT_CS 6
 #define ENC_A 19
 #define ENC_B 18
-#define PIN1 23
+#define PIN1 5
 #define PIN2 30
 #define PIN3 24
 #define NUMPIXELS 8 // 每个stick有8个LED
@@ -29,7 +29,7 @@ const int rightServoPin = 9;
 const int leftServoPin = 10;
 const int rightIrSensorPin = 2;
 const int leftIrSensorPin = 3;
-const int initialPosition = 0;  // Initial position of the servos
+const int initialPosition =0 ;  // Initial position of the servos
 
 // Desired number of pills for each dispenser
 int rightDesiredPill = 3;
@@ -400,7 +400,7 @@ void turning_servos() {
             break;
         }
 
-        for (int angle = initialPosition; angle <= 180; angle += 10) {
+        for (int angle = initialPosition; angle <= 180; angle += 15) {
             if (!rightPillsDispensed) {
                 rightServo.write(angle);
             }
@@ -419,7 +419,7 @@ void turning_servos() {
             }
         }
 
-        for (int angle = 180; angle >= initialPosition; angle -= 10) {
+        for (int angle = 180; angle >= initialPosition; angle -= 15) {
             if (!rightPillsDispensed) {
                 rightServo.write(angle);
             }
@@ -517,7 +517,7 @@ void loop() {
         lastUpdateTime = millis();
     }
 
-    if (millis() - lastUpdateTime > 5000 && screenIsActive) {
+    if (millis() - lastUpdateTime > 4000 && screenIsActive) {
         tft.fillScreen(GC9A01A_BLACK);
         lastUpdateTime = millis();
         screenIsActive = false;
