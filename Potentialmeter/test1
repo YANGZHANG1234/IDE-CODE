@@ -1,0 +1,41 @@
+void loop() {
+    static int lastCounter = 0;
+    DateTime now = rtc.now();
+    now_time = now.hour();
+    
+    // Read the potentiometer value and map it
+    int potValue1 = analogRead(POT1);
+    set_time = mapPotmeterValue(potValue1);
+
+    if (counter != lastCounter) {
+        if (!screenIsActive) {
+            tft.fillScreen(GC9A01A_BLACK);
+            drawPreviousArc();
+            screenIsActive = true;
+        }
+        updateArc(counter, lastCounter);
+        lastCounter = counter;
+        lastKnownCounter = counter;
+        testText(counter * 50);
+        lastUpdateTime = millis();
+    }
+
+    if (millis() - lastUpdateTime > 5000 && screenIsActive) {
+        tft.fillScreen(GC9A01A_BLACK);
+        lastUpdateTime = millis();
+        screenIsActive = false;
+
+        // Only call displaySetDone if the time hasn't been set
+        if (!isTimeSet) {
+            displaySetDone(now.hour(), now.minute(), now.year());
+            isTimeSet = true; // Mark that the time has been set
+        }
+    }
+
+    // Update the display with the current time only if there is a change
+    if (!screenIsActive) {
+        displayCurrentTime();
+    }
+
+    checkAndSetLEDs();
+}
